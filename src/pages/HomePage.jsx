@@ -4,7 +4,7 @@ import SearchBar from '../components/Listings/SearchBar';
 
 const HomePage = () => {
     return (
-        <div class="mx-auto max-w-2xl py-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl py-6 px-4 sm:px-6 lg:px-8">
             <div className="py-16">
                 <div className="text-center">
                     {/* Hero */}
@@ -17,7 +17,11 @@ const HomePage = () => {
                     {/* Search bar */}
                     <div className="mt-10 flex items-center justify-center gap-x-6">
                         <div className="w-full sm:max-w-lg">
-                            <SearchBar redirect />
+                            <SearchBar onSubmit={(e) => {
+                                e.preventDefault();
+                                const params = new URLSearchParams({ q: e.target.search.value });
+                                window.location.href = `/search?${params.toString()}`;
+                            }} />
                         </div>
                     </div>
                 </div>

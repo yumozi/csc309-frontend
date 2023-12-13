@@ -6,6 +6,8 @@ import { useSearchParams, Link, createSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
 import titleize from 'titleize';
+import { useContext } from 'react';
+import UserContext from '../context/UserContext';
 
 const FilterSection = ({ children, ...props }) => {
   const BUTTON_CLASS = clsx(
@@ -74,34 +76,16 @@ const FilterSection = ({ children, ...props }) => {
   )
 };
 
-const PetCard = ({ pet }) => {
+const ApplicationCard = ({ application }) => {
   return (
-    <Link to={`/pet/${pet.id}/`} className="group border-2 border-gray-200 rounded-lg">
-      <div className="aspect-square rounded-t-lg w-full overflow-hidden sm:aspect-w-2 sm:aspect-h-3">
-        <div className="relative h-full w-full bg-gray-100">
-          <img
-            src={pet.image}
-            alt={`A photo of ${pet.name}, a ${pet.age} years old ${pet.breed}`}
-            className="object-cover object-center transform transition-all duration-500 ease-in-out group-hover:scale-[1.04]"
-          />
-          <div
-            className="absolute inset-x-0 top-0 flex h-full items-end justify-start overflow-hidden p-4"
-          >
-            <div className="flex flex-col space-y-1">
-            </div>
-          </div>
-        </div>
-      </div>
+    <Link to={`/applications/${application.id}/`} className="group border-2 border-gray-200 rounded-lg">
       <div className="flex flex-col space-y-1 p-2">
         <h1 className="font-bold text-gray-600 text-lg sm:text-2xl">
-          {pet.name}
+          {"Application " + application.pet}
         </h1>
         <div className="flex flex-wrap gap-y-2 gap-x-2 items-start justify-start">
           <div className="text-white text-xs drop-shadow-sm rounded-lg bg-gray-300 px-2 py-1 font-bold">
-            {pet.age} years old
-          </div>
-          <div className="text-white text-xs drop-shadow-sm rounded-lg bg-gray-300 px-2 py-1 font-bold">
-            {pet.breed}
+            Status: {application.status}
           </div>
         </div>
       </div>
@@ -109,17 +93,22 @@ const PetCard = ({ pet }) => {
   )
 };
 
-async function searchPets(query, ordering, filters, page=1) {
+async function searchApplications(ordering, filters, page=1, token) {
   const params = new URLSearchParams({
-    search: query,
-    ordering: ordering,
+    sort_by: ordering,
     page: page
   });
   const filterParams = Object.entries(filters).map(([field, values]) => `${field}=${values.join(",")}`).join("&");
   const allParams = `${params.toString()}&${filterParams}`;
-  const url = `${process.env.REACT_APP_SERVER}/api/pets?${allParams}`;
+  console.log("Fetching application with token " + token);
+  const url = `${process.env.REACT_APP_SERVER}/api/applications?${allParams}`;
 
-  return await fetch(url).then(response => {
+  return await fetch(url,
+    {headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }}
+  ).then(response => {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -132,7 +121,7 @@ async function searchPets(query, ordering, filters, page=1) {
   });
 };
 
-const SearchPage = () => {
+const ApplicationListPage = () => {
     const [searchParams, _] = useSearchParams();
 
     const [breeds, setBreeds] = useState([]);
@@ -142,13 +131,10 @@ const SearchPage = () => {
     const [numResults, setNumResults] = useState(0);
     const [numPages, setNumPages] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState({
-      "age_group": false,
-      "size_group": false,
-      "gender": false,
-      "breed": false,
-      "colour": false,
+      "status": false,
     });
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const { token } = useContext(UserContext);
 
     const firstUpdate = useRef(true);
     useLayoutEffect(() => {
@@ -182,10 +168,10 @@ const SearchPage = () => {
       }
 
       console.log(
-        `Searching for  "${search.query}" with ordering "${search.ordering}",
-        filters ${JSON.stringify(search.filters)}, and page ${search.page}`
+        `Searching with ordering "${search.ordering}" and page ${search.page}`
       );
-      searchPets(search.query, search.ordering, search.filters, search.page).then(data => {
+      searchApplications(search.ordering, search.filters, search.page, token).then(data => {
+        if (!data) { return; }
         setSearchResults(data.results);
         setNumResults(data.num_results);
         setNumPages(data.num_pages);
@@ -201,12 +187,8 @@ const SearchPage = () => {
     }, [currSearch]);
 
     const ORDERINGS = [
-      ["name", "Name: A to Z"],
-      ["-name", "Name: Z to A"],
-      ["age", "Age: Young to Old"],
-      ["-age", "Age: Old to Young"],
-      ["size", "Size: Low to High"],
-      ["-size", "Size: High to Low"],
+      ["-created_at", "Last Created"],
+      ["-updated_at", "Last Updated"],
     ]
 
     const onFilterChange = (field, value, checked) => {
@@ -224,94 +206,19 @@ const SearchPage = () => {
       return (
         <form className={mobile ? "mt-4" : "hidden lg:block"}>
           <FilterSection
-            field="age_group"
-            title="Age"
+            field="status"
+            title="Status"
             values={[
-              ["puppy", "Puppy (0-1 years)"],
-              ["young", "Young (1-3 years)"],
-              ["adult", "Adult (3-7 years)"],
-              ["senior", "Senior (7+ years)"]
+              ["pending", "Pending"],
+              ["approved", "Approved"],
+              ["denied", "Denied"],
             ]}
-            collapsed={isCollapsed["age_group"]}
-            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "age_group": value })}
-            selected={currSearch.filters["age_group"] || []}
-            onChange={(value, checked) => onFilterChange("age_group", value, checked)}
+            collapsed={isCollapsed["status"]}
+            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "status": value })}
+            selected={currSearch.filters["status"] || []}
+            onChange={(value, checked) => onFilterChange("status", value, checked)}
             mobile={mobile}
             first
-          />
-          <FilterSection
-            field="size_group"
-            title="Size"
-            values={[
-              ["small", "Small (0-12 kg)"],
-              ["medium", "Medium (12-25 kg)"],
-              ["large", "Large (25-45 kg)"],
-              ["xlarge", "Extra Large (45+ kg)"]
-            ]}
-            collapsed={isCollapsed["size_group"]}
-            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "size_group": value })}
-            selected={currSearch.filters["size_group"] || []}
-            onChange={(value, checked) => onFilterChange("size_group", value, checked)}
-            mobile={mobile}
-          />
-          <FilterSection
-            field="gender"
-            title="Gender"
-            values={[
-              ["male", "Male"],
-              ["female", "Female"]
-            ]}
-            collapsed={isCollapsed["gender"]}
-            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "gender": value })}
-            selected={currSearch.filters["gender"] || []}
-            onChange={(value, checked) => onFilterChange("gender", value, checked)}
-            mobile={mobile}
-          />
-          <FilterSection
-            field="breed"
-            title="Breed"
-            values={breeds.map(breed => [breed, titleize(breed)])}
-            collapsed={isCollapsed["breed"]}
-            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "breed": value })}
-            selected={currSearch.filters["breed"] || []}
-            onChange={(value, checked) => onFilterChange("breed", value, checked)}
-            mobile={mobile}
-          />
-          <FilterSection
-            field="colour"
-            title="Colour"
-            values={[
-              ["black", "Black"],
-              ["brown", "Brown"],
-              ["white", "White"],
-              ["grey", "Grey"],
-              ["blonde", "Blonde"],
-              ["blonde", "Orange"],
-              ["other", "Other"]
-            ]}
-            labelFactory={label => {
-              const PET_COLOUR_CLASSES = {
-                "Black": "from-gray-500 to-black",
-                "Brown": "from-yellow-500 to-yellow-900",
-                "White": "from-white to-gray-300",
-                "Grey": "from-gray-100 to-gray-400",
-                "Blonde": "from-yellow-100 to-yellow-500",
-                "Orange": "from-yellow-100 to-orange-500",
-                "Other": "from-red-600 to-purple-600 via-50% via-green-300",
-              };
-              const CLASS = "rounded-full text-white h-5 w-5 outline outline-1 outline-gray-100 bg-gradient-to-br shadow-sm";
-              return (
-                <span className="inline-flex items-center gap-x-2">
-                  <span className={clsx(CLASS, PET_COLOUR_CLASSES[label])} aria-hidden="true"></span>
-                  <span className="text-gray-600 text-sm">{label}</span>
-                </span>
-              );
-            }}
-            collapsed={isCollapsed["colour"]}
-            onCollapse={(value) => setIsCollapsed({ ...isCollapsed, "colour": value })}
-            selected={currSearch.filters["colour"] || []}
-            onChange={(value, checked) => onFilterChange("colour", value, checked)}
-            mobile={mobile}
           />
         </form>
       );
@@ -444,8 +351,8 @@ const SearchPage = () => {
               <div className="lg:col-span-3">
                 <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
                   {/* If we're not waiting for search, display the results */}
-                  {searchResults && searchResults.map(pet => (
-                    <PetCard pet={pet} key={pet.id} />
+                  {searchResults && searchResults.map(application => (
+                    <ApplicationCard application={application} key={application.id} />
                   ))}
 
                   {/* If we're not waiting for search and there are no results, display a message */}
@@ -455,7 +362,7 @@ const SearchPage = () => {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-12 w-12 text-gray-400" >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
                         </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No pets found</h3>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No applications found</h3>
                         <p className="mt-1 text-sm text-gray-500">
                           Try adjusting your search terms or filters.
                         </p>
@@ -471,4 +378,4 @@ const SearchPage = () => {
     );
 };
 
-export default SearchPage;
+export default ApplicationListPage;

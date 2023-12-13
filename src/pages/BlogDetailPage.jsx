@@ -17,7 +17,7 @@ const BlogDetailPage = () => {
                             <p className="text-gray-700 text-lg leading-relaxed">{post.content}</p>
                             <small className="text-gray-500 block mt-4">Posted on: {new Date(post.date_posted).toLocaleDateString()}</small>
                         </div>
-                    </div>
+                    </div> 
                 ) : (
                     <Header title="Blog post not found" subtitle="The requested blog post could not be found." />
                 )}

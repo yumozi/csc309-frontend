@@ -1,12 +1,15 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-const PetCard = ({ name, age, breed, distance }) => {
+const PetCard = ({ name, age, breed, distance, id, image}) => {
+
+    const petDetailURL = `/pet/${id}/`;
     return (
-        <a href="./pet-detail.html" className="group border-2 border-gray-200 rounded-lg">
+        <Link to={petDetailURL} className="group border-2 border-gray-200 rounded-lg">
             <div className="aspect-square rounded-t-lg w-full overflow-hidden sm:aspect-w-2 sm:aspect-h-3">
                 <div className="relative h-full w-full bg-gray-900">
                     <img
-                        src="./images/dog.png"
+                        src={image}
                         alt={name}
                         className="object-cover object-center transform transition-all duration-500 ease-in-out group-hover:scale-[1.04]"
                     />
@@ -31,7 +34,7 @@ const PetCard = ({ name, age, breed, distance }) => {
                     </div>
                 </div>
             </div>
-        </a>
+        </Link>
     );
 };
 
